@@ -207,6 +207,18 @@
       .risk-btn { padding: 5px 9px; font-size: 12px; }
       .updated { display: none; }
     }
+  
+    .criteria-bar {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
+      padding: 8px 14px; font-size: 13px; color: #475569; margin-bottom: 14px;
+    }
+    .criteria-label { font-weight: 700; color: #1e293b; white-space: nowrap; }
+    .criteria-sep { color: #94a3b8; }
+    .c-red   { color: #ef4444; font-weight: 600; }
+    .c-amber { color: #f59e0b; font-weight: 600; }
+    .c-grn   { color: #10b981; font-weight: 600; }
+    .c-div   { color: #cbd5e1; margin: 0 6px; }
   </style>
 </head>
 <body>
@@ -257,28 +269,11 @@
   </div>
 
   <div class="main">
-    <div class="signal-rules" aria-label="信号の判定条件">
-      <p class="signal-rules-title">赤・黄・緑の条件（全指標の基準。一覧は上部の切替で1つを選び、その色をカードに表示）</p>
-      <div class="signal-rules-cols">
-        <div class="rule-block">
-          <div class="rule-h"><span class="rule-dot" style="background:#ef4444"></span><span class="rule-dot" style="background:#f59e0b"></span><span class="rule-dot" style="background:#10b981"></span>達成率</div>
-          <div class="rule-row"><span class="r-red">危険(赤)：</span>未満 80%</div>
-          <div class="rule-row"><span class="r-amber">注意(黄)：</span>80% 以上 95% 未満</div>
-          <div class="rule-row"><span class="r-grn">順調(緑)：</span>95% 以上</div>
-        </div>
-        <div class="rule-block">
-          <div class="rule-h"><span class="rule-dot" style="background:#ef4444"></span><span class="rule-dot" style="background:#f59e0b"></span><span class="rule-dot" style="background:#10b981"></span>粗利率</div>
-          <div class="rule-row"><span class="r-red">危険(赤)：</span>未満 20%</div>
-          <div class="rule-row"><span class="r-amber">注意(黄)：</span>20% 以上 30% 未満</div>
-          <div class="rule-row"><span class="r-grn">順調(緑)：</span>30% 以上</div>
-        </div>
-        <div class="rule-block">
-          <div class="rule-h"><span class="rule-dot" style="background:#ef4444"></span><span class="rule-dot" style="background:#f59e0b"></span><span class="rule-dot" style="background:#10b981"></span>契約数</div>
-          <div class="rule-row"><span class="r-red">危険(赤)：</span>月 9 件以下</div>
-          <div class="rule-row"><span class="r-amber">注意(黄)：</span>10 件以上 14 件以下</div>
-          <div class="rule-row"><span class="r-grn">順調(緑)：</span>月 15 件以上</div>
-        </div>
-      </div>
+    <div class="criteria-bar">
+  <span class="criteria-label">判定基準</span>
+  <span class="criteria-sep">—</span>
+  <span id="criteria-content"></span>
+</div>
     </div>
     <div class="search-wrap">
       <input class="search-input" id="search" type="text" placeholder="🔍 担当者名・チームで検索" oninput="renderCards()">
@@ -526,7 +521,15 @@
     }).join('');
   }
 
+  
+  const CRITERIA = {"achievement":"<span class=\"c-red\">● 赤: 80%未満</span>　<span class=\"c-amber\">● 黄: 80〜94%</span>　<span class=\"c-grn\">● 緑: 95%以上</span><span class=\"c-div\">|</span>達成率","profit":"<span class=\"c-red\">● 赤: 20%未満</span>　<span class=\"c-amber\">● 黄: 20〜29%</span>　<span class=\"c-grn\">● 緑: 30%以上</span><span class=\"c-div\">|</span>粗利率","contracts":"<span class=\"c-red\">● 赤: 月9件以下</span>　<span class=\"c-amber\">● 黄: 10〜14件</span>　<span class=\"c-grn\">● 緑: 月15件以上</span><span class=\"c-div\">|</span>契約数"};
+  function updateCriteria(m) {
+    const el = document.getElementById('criteria-content');
+    if (el && CRITERIA[m]) el.innerHTML = CRITERIA[m];
+  }
+  updateCriteria('achievement');
   function setMetric(m) {
+    updateCriteria(m);
     metric = m;
     ['ach','prf','ctr'].forEach(k => { const b = document.getElementById(`btn-${k}`); if (b) b.classList.remove('active'); });
     const map = { achievement:'ach', profit:'prf', contracts:'ctr' };
