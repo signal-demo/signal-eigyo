@@ -179,6 +179,12 @@
     .r-red { color: #b91c1c; font-weight: 600; }
     .r-amber { color: #b45309; font-weight: 600; }
     .r-grn { color: #047857; font-weight: 600; }
+    @media (max-width: 640px) {
+      .header { height: auto; flex-wrap: wrap; padding: 8px 12px; gap: 6px; }
+      .header-left { width: 100%; }
+      .header-right { width: 100%; justify-content: flex-start; flex-wrap: wrap; gap: 6px; }
+      .updated { display: none; }
+    }
   </style>
 </head>
 <body>
