@@ -73,7 +73,7 @@
     .c-card.warning { border-color: #fde68a; }
     .c-card.good    { border-color: #a7f3d0; }
     .c-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px; }
-    .c-id { font-size: 10px; color: #9ca3af; }
+    .c-id { font-size: 10px; color: #6b7280; }
     .sig { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
     .sig.danger  { background: #ef4444; }
     .sig.warning { background: #f59e0b; }
@@ -137,8 +137,9 @@
     .cr-addr { font-size: 12px; color: #6b7280; margin-top: 3px; display: flex; align-items: flex-start; gap: 3px; }
     .cr-metric { text-align: right; font-size: 14px; font-weight: 600; color: #dc2626; line-height: 1.35; }
 
-    .overlay { position: fixed; top: 0; right: 0; bottom: 0; left: 0; background: rgba(0,0,0,0.48); z-index: 200; display: flex; align-items: center; justify-content: center; visibility: hidden; opacity: 0; pointer-events: none; }
+    .overlay { position: fixed; top: 0; right: 0; bottom: 0; left: 0; background: rgba(0,0,0,0.48); z-index: 400; display: flex; align-items: center; justify-content: center; visibility: hidden; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
     .overlay.open { visibility: visible; opacity: 1; pointer-events: auto; }
+    .overlay.stacked { background: rgba(0,0,0,0.18); backdrop-filter: none; -webkit-backdrop-filter: none; }
     .modal { background: white; border-radius: 16px; width: 480px; max-width: 92vw; max-height: 88vh; overflow-y: auto; padding: 26px; position: relative; flex-shrink: 0; }
     .modal-close { position: absolute; top: 14px; right: 14px; background: #f3f4f6; border: none; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-size: 15px; display: flex; align-items: center; justify-content: center; }
     .modal-tags { display: flex; gap: 7px; margin-bottom: 10px; flex-wrap: wrap; }
@@ -180,13 +181,6 @@
     .r-amber { color: #b45309; font-weight: 600; }
     .r-grn { color: #047857; font-weight: 600; }
     @media (max-width: 640px) {
-      .header { height: auto; flex-wrap: wrap; padding: 8px 12px; gap: 6px; }
-      .header-left { width: 100%; }
-      .header-right { width: 100%; justify-content: flex-start; flex-wrap: wrap; gap: 6px; }
-      .updated { display: none; }
-    }
-  
-    @media (max-width: 640px) {
       .header {
         height: auto;
         flex-wrap: wrap;
@@ -203,9 +197,11 @@
         flex-wrap: wrap;
         gap: 6px;
       }
-      .tog-btn { padding: 5px 9px; font-size: 12px; }
-      .risk-btn { padding: 5px 9px; font-size: 12px; }
+      .tog-btn { padding: 11px 9px; font-size: 12px; min-height: 44px; }
+      .risk-btn { padding: 11px 9px; font-size: 12px; min-height: 44px; }
       .updated { display: none; }
+      .summary-row { grid-template-columns: 1fr 1fr; }
+      .search-input { width: 100%; max-width: 280px; }
     }
   
     .criteria-bar {
@@ -216,7 +212,7 @@
     .criteria-label { font-weight: 700; color: #1e293b; white-space: nowrap; }
     .criteria-sep { color: #94a3b8; }
     .c-red   { color: #ef4444; font-weight: 600; }
-    .c-amber { color: #f59e0b; font-weight: 600; }
+    .c-amber { color: #b45309; font-weight: 600; }
     .c-grn   { color: #10b981; font-weight: 600; }
     .c-div   { color: #cbd5e1; margin: 0 6px; }
   </style>
@@ -270,7 +266,7 @@
 
   <div class="main">
     <div class="search-wrap">
-      <input class="search-input" id="search" type="text" placeholder="🔍 担当者名・チームで検索" oninput="renderCards()">
+      <input class="search-input" id="search" type="text" placeholder="🔍 担当者名・チームで検索">
     </div>
     <div class="summary-row">
       <div class="sum-card s-total active" onclick="setFilter('all')" id="sc-all">
@@ -343,7 +339,7 @@
   function buildCompoundListEigyo(list) {
     document.getElementById('compound-h1').textContent = '達成率・粗利率・契約数 3つとも赤の担当者';
     document.getElementById('compound-sub').textContent =
-      '達成率が危険（80%未満）かつ 粗利率が危険（20%未満）かつ 契約数が危険（月9件以下）';
+      `達成率が危険（${THRESHOLDS.achievement.warn}%未満）かつ 粗利率が危険（${THRESHOLDS.profit.warn}%未満）かつ 契約数が危険（月${THRESHOLDS.contracts.warn - 1}件以下）`;
     const el = document.getElementById('compound-list');
     if (!el) return;
     if (!list.length) {
@@ -374,14 +370,8 @@
   }
   function maybeCloseCompound(e) { if (e.target === document.getElementById('compound-overlay')) closeCompoundModal(); }
   function openFromComposite(id) {
-    const o = document.getElementById('compound-overlay');
-    if (o) o.classList.remove('open');
-    composite = false;
-    const b = document.getElementById('btn-comp');
-    if (b) b.classList.remove('active');
-    syncSummaryActive();
-    openModal(id);
-    renderCards();
+    document.getElementById('overlay').classList.add('stacked');
+    openModal(id, 'achievement');
   }
 
   const SAMPLE_DATA = [
@@ -410,7 +400,14 @@
   let staff = [], isDemo = true, metric = 'achievement', filter = 'all', composite = false;
   let modalStaff = null, mTab = 'achievement';
 
-  window.addEventListener('DOMContentLoaded', () => loadData(SAMPLE_DATA, true));
+  window.addEventListener('DOMContentLoaded', () => {
+    loadData(SAMPLE_DATA, true);
+    let searchTimer;
+    document.getElementById('search').addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(renderCards, 150);
+    });
+  });
 
   function loadData(data, demo) {
     staff = data; isDemo = demo;
@@ -426,12 +423,15 @@
     syncSummaryActive(); renderAll();
   }
 
-  // 契約数：月 15 件以上:緑(順調), 10–14:黄(注意), 9 件以下:赤(危険) — 達成率・粗利率と併用可
+  const THRESHOLDS = {
+    achievement: { good: 95, warn: 80 },
+    profit:      { good: 30, warn: 20 },
+    contracts:   { good: 15, warn: 10 },
+  };
   function sig(val, m) {
-    if (m === 'achievement') return val >= 95 ? 'good' : val >= 80 ? 'warning' : 'danger';
-    if (m === 'profit')      return val >= 30 ? 'good' : val >= 20 ? 'warning' : 'danger';
-    if (m === 'contracts')  return val >= 15 ? 'good' : val >= 10 ? 'warning' : 'danger';
-    return 'unknown';
+    const t = THRESHOLDS[m];
+    if (!t) return 'unknown';
+    return val >= t.good ? 'good' : val >= t.warn ? 'warning' : 'danger';
   }
   /** 複合リスク：達成率・粗利率・契約数の 3 軸がいずれも危険 */
   function isEigyoComposite(s) {
@@ -448,21 +448,33 @@
   dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]); });
   function handleFile(e) { if (e.target.files[0]) processFile(e.target.files[0]); }
   function processFile(file) {
+    const allowed = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'];
+    if (file.type && !allowed.includes(file.type) && !file.name.match(/\.(xlsx|xls)$/i)) {
+      alert('Excelファイル (.xlsx/.xls) のみ対応しています');
+      return;
+    }
     const reader = new FileReader();
+    reader.onerror = () => alert('ファイルの読み込みに失敗しました。');
     reader.onload = e => {
-      const wb = XLSX.read(e.target.result, { type: 'array' });
-      const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]).map((r, i) => ({
-        id: i+1, name: r['担当者名'] || `担当者${i+1}`,
-        team: r['所属チーム'] || '', sales: +r['売上(万円/月)'] || 0,
-        target: +r['目標(万円/月)'] || 0, achievement: +r['達成率(%)'] || 0,
-        profit: +r['粗利率(%)'] || 0, yoy: +r['前年比(%)'] || 0,
-        contracts: (r['契約数'] !== undefined && r['契約数'] !== '') ? +r['契約数']
-          : (r['契約数(件/月)'] !== undefined && r['契約数(件/月)'] !== '') ? +r['契約数(件/月)']
-          : +r['商談件数'] || 0,
-        visits: +r['訪問件数'] || 0,
-      }));
-      dz.style.display = 'none'; document.getElementById('dashboard').style.display = 'block';
-      loadData(data, false);
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array' });
+        const raw = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+        if (!raw.length) { alert('データが見つかりませんでした。必須列を確認してください。'); return; }
+        const data = raw.map((r, i) => ({
+          id: i+1, name: r['担当者名'] || `担当者${i+1}`,
+          team: r['所属チーム'] || '', sales: +r['売上(万円/月)'] || 0,
+          target: +r['目標(万円/月)'] || 0, achievement: +r['達成率(%)'] || 0,
+          profit: +r['粗利率(%)'] || 0, yoy: +r['前年比(%)'] || 0,
+          contracts: (r['契約数'] !== undefined && r['契約数'] !== '') ? +r['契約数']
+            : (r['契約数(件/月)'] !== undefined && r['契約数(件/月)'] !== '') ? +r['契約数(件/月)']
+            : +r['商談件数'] || 0,
+          visits: +r['訪問件数'] || 0,
+        }));
+        dz.style.display = 'none'; document.getElementById('dashboard').style.display = 'block';
+        loadData(data, false);
+      } catch (err) {
+        alert('Excelの読み込みに失敗しました: ' + err.message);
+      }
     };
     reader.readAsArrayBuffer(file);
   }
@@ -511,17 +523,24 @@
     grid.innerHTML = list.map(s => {
       const v = metricVal(s), sg = sig(v, metric);
       const disp = metric === 'contracts' ? String(v) : v.toFixed(1);
-      return `<div class="c-card ${sg}" onclick="openModal(${s.id})">
-        <div class="c-top"><span class="c-id">No.${s.id}</span><span class="sig ${sg}"></span></div>
-        <div class="c-sub">${s.team}</div>
-        <div class="c-name">${s.name}</div>
+      return `<div class="c-card ${sg}" role="button" tabindex="0" data-id="${s.id}"
+        onclick="openModal(${s.id})"
+        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openModal(${s.id})}"
+        aria-label="${__escE(s.name)}の詳細を見る">
+        <div class="c-top"><span class="c-id">No.${s.id}</span><span class="sig ${sg}" aria-hidden="true"></span></div>
+        <div class="c-sub">${__escE(s.team)}</div>
+        <div class="c-name">${__escE(s.name)}</div>
         <div class="c-val ${sg}">${disp}<span class="unit">${unit}</span></div>
       </div>`;
     }).join('');
   }
 
   
-  const CRITERIA = {"achievement":"<span class=\"c-red\">● 赤: 80%未満</span>　<span class=\"c-amber\">● 黄: 80〜94%</span>　<span class=\"c-grn\">● 緑: 95%以上</span>","profit":"<span class=\"c-red\">● 赤: 20%未満</span>　<span class=\"c-amber\">● 黄: 20〜29%</span>　<span class=\"c-grn\">● 緑: 30%以上</span>","contracts":"<span class=\"c-red\">● 赤: 月9件以下</span>　<span class=\"c-amber\">● 黄: 10〜14件</span>　<span class=\"c-grn\">● 緑: 月15件以上</span>"};
+  const CRITERIA = {
+    achievement: `<span class="c-red">● 赤: ${THRESHOLDS.achievement.warn}%未満</span>　<span class="c-amber">● 黄: ${THRESHOLDS.achievement.warn}〜${THRESHOLDS.achievement.good - 1}%</span>　<span class="c-grn">● 緑: ${THRESHOLDS.achievement.good}%以上</span>`,
+    profit:      `<span class="c-red">● 赤: ${THRESHOLDS.profit.warn}%未満</span>　<span class="c-amber">● 黄: ${THRESHOLDS.profit.warn}〜${THRESHOLDS.profit.good - 1}%</span>　<span class="c-grn">● 緑: ${THRESHOLDS.profit.good}%以上</span>`,
+    contracts:   `<span class="c-red">● 赤: 月${THRESHOLDS.contracts.warn - 1}件以下</span>　<span class="c-amber">● 黄: ${THRESHOLDS.contracts.warn}〜${THRESHOLDS.contracts.good - 1}件</span>　<span class="c-grn">● 緑: 月${THRESHOLDS.contracts.good}件以上</span>`,
+  };
   function updateCriteria(m) {
     const el = document.getElementById('criteria-content');
     if (el && CRITERIA[m]) el.innerHTML = CRITERIA[m];
@@ -554,16 +573,18 @@
       document.getElementById(`sc-${f}`).classList.toggle('active', f === filter && !composite));
   }
 
-  function openModal(id) {
+  function openModal(id, tab) {
     modalStaff = staff.find(s => s.id === id);
     if (!modalStaff) return;
-    mTab = 'achievement'; renderModal();
+    mTab = tab || metric; renderModal();
     document.getElementById('overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => { const btn = document.querySelector('#overlay .modal-close'); if (btn) btn.focus(); }, 50);
   }
   function renderModal() {
     const s = modalStaff;
     document.getElementById('m-tags').innerHTML =
-      `<span class="mtag">No.${s.id}</span>` + (s.team ? `<span class="mtag">${s.team}</span>` : '');
+      `<span class="mtag">No.${s.id}</span>` + (s.team ? `<span class="mtag">${__escE(s.team)}</span>` : '');
     document.getElementById('m-name').textContent = s.name;
     ['ach','prf','ctr'].forEach(k => document.getElementById(`mb-${k}`).classList.remove('active'));
     const map = { achievement:'ach', profit:'prf', contracts:'ctr' };
@@ -594,7 +615,12 @@
   }
   function setMTab(t) { mTab = t; renderModal(); }
   function maybeClose(e) { if (e.target === document.getElementById('overlay')) closeModal(); }
-  function closeModal() { document.getElementById('overlay').classList.remove('open'); }
+  function closeModal() {
+    const overlay = document.getElementById('overlay');
+    overlay.classList.remove('open', 'stacked');
+    const compoundOpen = document.getElementById('compound-overlay').classList.contains('open');
+    if (!compoundOpen) document.body.style.overflow = '';
+  }
 </script>
 </body>
 </html>
